@@ -8,16 +8,12 @@ window = Tk()
 window.title("Поиск БС")
 window.resizable(0, 0)
 
-window.iconbitmap('@bs.xbm')
-
-# c = Canvas(window)
-# c.pack()
-# c.create_line( 0, 60, 450, 60 ) # рисуем черную прямую линию
+# window.iconbitmap('@bs.xbm')
 
 # всплывающее окошко
 def dialog():
-	# box.showinfo( 'Адрес БС', 'CID: ' + entry.get() )
-	box.showinfo( 'Адрес БС', 'CID: ' + opsos.get() )
+	box.showinfo( 'Поиск БС', lac_entry.get() + "-" + cid_entry.get() + "\n" + "ничего не найдено")
+	# box.showinfo( 'Адрес БС', 'CID: ' + opsos.get() )
 
 # срабатывание при нажати Enter
 def getInfoReturn(e):
@@ -26,58 +22,46 @@ window.bind('<Return>', getInfoReturn)
 
 
 def getInfo():
-	
-	operator = opsos.get()
-
 	# работа с БД
-	connection = sqlite3.connect("bs")
+	connection = sqlite3.connect("all_bs.db")
 	cursor = connection.cursor()
 
-	if (operator == 'Motiv'):
-		rows = cursor.execute("SELECT lac, cid, azimut, adress_bs, end_of_action FROM motiv WHERE (cid = " + entry.get() + ") ORDER BY end_of_action").fetchall()
-	if (operator == 'Tele2'):
-		rows = cursor.execute("SELECT lac, cid, azimut, adress_bs, end_of_action FROM tele2 WHERE (cid = " + entry.get() + ") ORDER BY end_of_action").fetchall()
-	if (operator == 'МТС'):
-		rows = cursor.execute("SELECT lac, cid, azimut, adress_bs, end_of_action FROM `МТС` WHERE (cid = " + entry.get() + ") ORDER BY end_of_action").fetchall()
-	if (operator == 'Мегафон'):
-		rows = cursor.execute("SELECT lac, cid, azimut, adress_bs, end_of_action FROM `Мегафон` WHERE (cid = " + entry.get() + ") ORDER BY end_of_action").fetchall()
-	if (operator == 'Билайн'):
-		rows = cursor.execute("SELECT lac, cid, azimut, adress_bs, end_of_action FROM `Билайн` WHERE (cid = " + entry.get() + ") ORDER BY end_of_action").fetchall()
+	counter = cursor.execute("SELECT COUNT(*) FROM `bs` WHERE Lac = '" + lac_entry.get() + "' AND Cellid = '" + cid_entry.get() + "' AND `EndTime` > datetime('now')").fetchone()
+	
+	# если нашли то, что искали
+	if (counter[0] > 0):
+		row = cursor.execute("SELECT `EndTime`, `Address`, `Lac`, `Cellid`, `Azimut`, `BSFrequency` FROM `bs` WHERE Lac = '" + lac_entry.get() + "' AND Cellid = '" + cid_entry.get() + "' AND `EndTime` > datetime('now')").fetchone()
+		text.insert( '1.0', '----------------------------------------------------------------------------' )
+		text.insert( '1.0', '\n\n')
+		text.insert( '1.0', row[5] )
+		text.insert( '1.0', 'частота: ' )
+		text.insert( '1.0', '\n')
+		text.insert( '1.0', row[4] )
+		text.insert( '1.0', 'азимут: ' )
+		text.insert( '1.0', '\n')
+		text.insert( '1.0', row[1])
+		text.insert( '1.0', '\n')
+		text.insert( '1.0', row[3] )
+		text.insert( '1.0', '-' )
+		text.insert( '1.0', row[2])
+		text.insert( '1.0', '\n* ')
+	
+	# если не нашли то, что искали
+	if (counter[0] == 0):
+		dialog()
 
-	# rows = cursor.execute("SELECT lac, cid, azimut, adress_bs FROM " + operator + " WHERE (cid = " + entry.get() + ") ORDER BY end_of_action LIMIT 1").fetchall()
-	# text.insert('1.0', len(rows) )
-	# text.insert( '1.0', '-----------------------------------------' )
-	# text.insert( '1.0', '-----------------------------------------' )
+	
 
-	# получаем текущее время
-	current_time = datetime.timestamp(datetime.now())
 
-	text.insert( '1.0', '---------------------------------------------------------------------------------------------' )
-	for row in rows:
-		# время окончания работы вышки
-		end_time = datetime.strptime(row[4], '%d.%m.%Y %H:%M').timestamp()
-		
-		# если время окончания действия вышки больше текущего - отображаем результат
-		# т.е. вышка активна
-		if (end_time > current_time):
-			# вставляем полученный результат
-			text.insert( '1.0', '\n\n')
-			text.insert( '1.0', row[4] )
-			text.insert( '1.0', '\n')
-			text.insert( '1.0', row[3] )
-			text.insert( '1.0', '\n')
-			text.insert( '1.0', row[2])
-			text.insert( '1.0', ', азимут: ' )
-			text.insert( '1.0', row[1] )
-			text.insert( '1.0', '-' )
-			text.insert( '1.0', row[0])
-			text.insert( '1.0', '\n* ')
+
+# поле для ввода LACa
+lac_entry = Entry( window, width = 11 )
 
 # поле для ввода CIDa
-entry = Entry( window, width = 11 )
+cid_entry = Entry( window, width = 11 )
 
 # область для вывода ответов на запросы к БД
-text = Text(width = 58, height = 37, bg = "white", fg = 'black', wrap = WORD, font=("Verdana", 8) )
+text = Text(width = 45, height = 29, bg = "white", fg = 'black', wrap = WORD, font=("Verdana", 10) )
 text.place( x = 8, y = 65 )
 
 
@@ -86,20 +70,14 @@ label_cid = Label( window, text = 'CID: ' )
 btn = Button( window, text = 'Поиск', command = getInfo )
 
 
-#куда сохранять выбор оператора
-opsos = StringVar()
-OPTIONS = ["Билайн", "Мегафон", "МТС", "Tele2", "Motiv"]
-opsos.set(OPTIONS[4]) # значение по-умолчанию
-operator_list = OptionMenu(window, opsos, *OPTIONS)
-
-
-
-
 # расположение элементов в окне
 label_lac.place( x = 5, y = 20 )
-operator_list.place( x = 50, y = 15 )
+# operator_list.place( x = 50, y = 15 )
 label_cid.place( x = 165, y = 20 )
-entry.place( x = 215, y = 20 )
+
+lac_entry.place( x = 50, y = 20 )
+cid_entry.place( x = 215, y = 20 )
+
 btn.place( x = 340, y = 15 )
 
 
